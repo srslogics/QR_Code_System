@@ -51,12 +51,13 @@ const demoInvoices = [
   },
 ];
 
+const storage = createStorage();
 const savedState = readStorage(STORAGE_KEY, {});
 
 const state = {
   items: savedState.items || [],
   invoices: savedState.invoices || [],
-  billNumber: Number(localStorage.getItem(BILL_KEY) || savedState.billNumber || "1001"),
+  billNumber: Number(storage.getItem(BILL_KEY) || savedState.billNumber || "1001"),
   activeView: savedState.activeView || "dashboard",
 };
 
@@ -163,9 +164,29 @@ const currencySymbols = {
 
 function readStorage(key, fallback) {
   try {
-    return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback));
+    return JSON.parse(storage.getItem(key) || JSON.stringify(fallback));
   } catch {
     return fallback;
+  }
+}
+
+function createStorage() {
+  try {
+    const testKey = "__paybill_storage_test__";
+    window.localStorage.setItem(testKey, "1");
+    window.localStorage.removeItem(testKey);
+    return window.localStorage;
+  } catch {
+    const memory = {};
+    return {
+      getItem: (key) => memory[key] || null,
+      setItem: (key, value) => {
+        memory[key] = String(value);
+      },
+      removeItem: (key) => {
+        delete memory[key];
+      },
+    };
   }
 }
 
@@ -263,20 +284,32 @@ function clearQr(node) {
 
 function renderQr(node, payload, size) {
   clearQr(node);
-  if (!window.QRCode) {
-    node.textContent = "QR engine is loading. Try again in a moment.";
-    return false;
+  if (window.QRCode) {
+    new window.QRCode(node, {
+      text: payload,
+      width: size,
+      height: size,
+      colorDark: "#111827",
+      colorLight: "#ffffff",
+      correctLevel: window.QRCode.CorrectLevel?.M ?? 0,
+    });
+    return true;
   }
 
-  new QRCode(node, {
-    text: payload,
-    width: size,
-    height: size,
-    colorDark: "#111827",
-    colorLight: "#ffffff",
-    correctLevel: QRCode.CorrectLevel.M,
-  });
+  renderQrFallback(node, payload, size);
   return true;
+}
+
+function renderQrFallback(node, payload, size) {
+  const encoded = encodeURIComponent(payload);
+  node.innerHTML = `
+    <img
+      alt="Generated payment QR"
+      width="${size}"
+      height="${size}"
+      src="https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encoded}"
+    >
+  `;
 }
 
 function updateQrDownload() {
@@ -481,8 +514,8 @@ function persist() {
       nextState[key] = els[key].value;
     }
   });
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
-  localStorage.setItem(BILL_KEY, String(state.billNumber));
+  storage.setItem(STORAGE_KEY, JSON.stringify(nextState));
+  storage.setItem(BILL_KEY, String(state.billNumber));
   els.saveState.textContent = "Saved locally";
 }
 
@@ -656,7 +689,7 @@ function loadInvoice(invoiceNo) {
 function newBill() {
   state.items = [];
   state.billNumber += 1;
-  localStorage.setItem(BILL_KEY, String(state.billNumber));
+  storage.setItem(BILL_KEY, String(state.billNumber));
   els.customerName.value = "";
   els.customerPhone.value = "";
   els.discount.value = "0";
