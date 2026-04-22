@@ -3,223 +3,318 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>QR POS Billing</title>
+    <title>PayBill Pro - QR POS Billing</title>
     <link rel="stylesheet" href="styles.css">
     <script defer src="vendor/qrcode.min.js"></script>
     <script defer src="app.js"></script>
   </head>
   <body>
-    <header class="app-header">
-      <div class="brand-lockup">
-        <div class="brand-mark">QP</div>
-        <div>
-          <p class="eyebrow">QR Payment + POS</p>
-          <h1>QR POS Billing</h1>
+    <div class="app-layout">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">PB</div>
+          <div>
+            <strong>PayBill Pro</strong>
+            <span>QR POS Suite</span>
+          </div>
         </div>
-      </div>
-      <div class="header-actions">
-        <button class="ghost-button" id="loadDemoBtn" type="button">Demo Data</button>
-        <button class="icon-button" id="printBillBtn" type="button" title="Print bill" aria-label="Print bill">
-          <span aria-hidden="true">⎙</span>
-        </button>
-        <button class="primary-button" id="newBillBtn" type="button">New Bill</button>
-      </div>
-    </header>
+        <nav class="nav-list" aria-label="Main navigation">
+          <button class="nav-button active" type="button" data-view="dashboard">Dashboard</button>
+          <button class="nav-button" type="button" data-view="pos">POS Billing</button>
+          <button class="nav-button" type="button" data-view="payments">QR Payments</button>
+          <button class="nav-button" type="button" data-view="invoices">Invoices</button>
+          <button class="nav-button" type="button" data-view="settings">Settings</button>
+        </nav>
+        <div class="sidebar-card">
+            <span>Offline Ready</span>
+            <strong id="sidebarTotal">₹0.00</strong>
+            <p>Runs on this device now. Backend sync can be connected for multi-counter teams.</p>
+        </div>
+      </aside>
 
-    <main class="app-shell">
-      <section class="workspace">
-        <section class="metrics-bar" aria-label="Bill summary">
+      <main class="main-shell">
+        <header class="topbar">
           <div>
-            <span>Total</span>
-            <strong id="metricTotal">₹0.00</strong>
+            <p class="eyebrow">Retail payments and billing</p>
+            <h1 id="viewTitle">Business Dashboard</h1>
           </div>
-          <div>
-            <span>Items</span>
-            <strong id="metricItems">0</strong>
-          </div>
-          <div>
-            <span>Bill</span>
-            <strong id="metricBill">INV-1001</strong>
-          </div>
-          <div>
-            <span>Payment</span>
-            <strong id="metricPayment">UPI QR</strong>
-          </div>
-        </section>
-
-        <section class="panel settings-panel" aria-labelledby="settingsTitle">
-          <div class="panel-heading compact-heading">
-            <div>
-              <p class="eyebrow">Merchant Setup</p>
-              <h2 id="settingsTitle">Business Details</h2>
-            </div>
+          <div class="topbar-actions">
             <span class="save-state" id="saveState">Saved locally</span>
+            <button class="secondary-button" id="loadDemoBtn" type="button">Sample Sale</button>
+            <button class="primary-button" id="newBillBtn" type="button">New Bill</button>
           </div>
-          <div class="settings-grid">
-            <div class="field">
-              <label for="businessName">Business Name</label>
-              <input id="businessName" type="text" value="Shree Digital Store" autocomplete="organization">
+        </header>
+
+        <section class="view active" id="dashboardView" data-title="Business Dashboard">
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <span>Current Bill</span>
+              <strong id="metricCurrentTotal">₹0.00</strong>
+              <small id="metricCurrentItems">0 items in cart</small>
             </div>
-            <div class="field">
-              <label for="upiId">UPI ID</label>
-              <input id="upiId" type="text" value="merchant@upi" autocomplete="off">
+            <div class="metric-card">
+              <span>Saved Revenue</span>
+              <strong id="metricRevenue">₹0.00</strong>
+              <small id="metricPaidCount">0 paid invoices</small>
             </div>
-            <div class="field">
-              <label for="payeeName">Payee Name</label>
-              <input id="payeeName" type="text" value="Shree Digital Store" autocomplete="name">
+            <div class="metric-card">
+              <span>Pending Collection</span>
+              <strong id="metricPending">₹0.00</strong>
+              <small id="metricPendingCount">0 pending invoices</small>
             </div>
-            <div class="field">
-              <label for="currency">Currency</label>
-              <select id="currency">
-                <option value="INR" selected>INR</option>
-                <option value="USD">USD</option>
-                <option value="AED">AED</option>
-                <option value="EUR">EUR</option>
-              </select>
+            <div class="metric-card">
+              <span>Invoice Series</span>
+              <strong id="metricInvoice">INV-1001</strong>
+              <small id="metricPaymentMode">UPI QR enabled</small>
             </div>
-            <div class="field wide">
-              <label for="businessAddress">Address</label>
-              <input id="businessAddress" type="text" value="Main Market Road, New Delhi" autocomplete="street-address">
-            </div>
-            <div class="field">
-              <label for="businessPhone">Phone</label>
-              <input id="businessPhone" type="tel" value="+91 98765 43210" autocomplete="tel">
-            </div>
-            <div class="field">
-              <label for="invoicePrefix">Invoice Prefix</label>
-              <input id="invoicePrefix" type="text" value="INV" maxlength="8">
-            </div>
+          </div>
+
+          <div class="dashboard-grid">
+            <section class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Counter Snapshot</p>
+                  <h2>Live Bill</h2>
+                </div>
+                <button class="secondary-button" type="button" data-jump="pos">Open POS</button>
+              </div>
+              <div class="summary-list">
+                <div><span>Bill Number</span><strong id="summaryBillNo">INV-1001</strong></div>
+                <div><span>Customer</span><strong id="summaryCustomer">Walk-in</strong></div>
+                <div><span>Payment Status</span><strong id="summaryStatus">Pending</strong></div>
+                <div><span>Total Payable</span><strong id="summaryTotal">₹0.00</strong></div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Recent Activity</p>
+                  <h2>Invoices</h2>
+                </div>
+                <button class="secondary-button" type="button" data-jump="invoices">View All</button>
+              </div>
+              <div class="activity-list" id="activityList">
+                <p class="empty-state">Use Sample Sale or save your first bill.</p>
+              </div>
+            </section>
           </div>
         </section>
 
-        <section class="panel pos-panel" aria-labelledby="posTitle">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">Point of Sale</p>
-              <h2 id="posTitle">Create Bill</h2>
-            </div>
-            <div class="bill-meta">
-              <span id="billNumber">INV-1001</span>
-              <time id="billDate"></time>
-            </div>
-          </div>
+        <section class="view" id="posView" data-title="POS Billing">
+          <div class="pos-layout">
+            <section class="panel catalog-panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Product Catalog</p>
+                  <h2>Quick Counter Items</h2>
+                </div>
+                <div class="field search-field">
+                  <label for="catalogSearch">Search</label>
+                  <input id="catalogSearch" type="search" placeholder="Search item">
+                </div>
+              </div>
+              <div class="catalog-grid" id="catalogGrid"></div>
+            </section>
 
-          <form class="item-form" id="itemForm">
-            <div class="field item-name">
-              <label for="itemName">Item</label>
-              <input id="itemName" type="text" placeholder="Product or service" required>
-            </div>
-            <div class="field">
-              <label for="itemQty">Qty</label>
-              <input id="itemQty" type="number" min="1" step="1" value="1" required>
-            </div>
-            <div class="field">
-              <label for="itemPrice">Price</label>
-              <input id="itemPrice" type="number" min="0" step="0.01" placeholder="0.00" required>
-            </div>
-            <button class="primary-button add-button" type="submit">Add Item</button>
-          </form>
+            <section class="panel cart-panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Sale Entry</p>
+                  <h2 id="billNumber">INV-1001</h2>
+                </div>
+                <time id="billDate"></time>
+              </div>
 
-          <div class="quick-items" aria-label="Quick add products">
-            <button type="button" data-name="USB Cable" data-price="199">USB Cable</button>
-            <button type="button" data-name="Mobile Cover" data-price="299">Mobile Cover</button>
-            <button type="button" data-name="Charger" data-price="799">Charger</button>
-            <button type="button" data-name="Screen Guard" data-price="149">Screen Guard</button>
-          </div>
+              <form class="item-form" id="itemForm">
+                <div class="field item-name">
+                  <label for="itemName">Custom Item</label>
+                  <input id="itemName" type="text" placeholder="Product or service" required>
+                </div>
+                <div class="field">
+                  <label for="itemQty">Qty</label>
+                  <input id="itemQty" type="number" min="1" step="1" value="1" required>
+                </div>
+                <div class="field">
+                  <label for="itemPrice">Rate</label>
+                  <input id="itemPrice" type="number" min="0" step="0.01" placeholder="0.00" required>
+                </div>
+                <button class="primary-button" type="submit">Add</button>
+              </form>
 
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th>Qty</th>
-                  <th>Rate</th>
-                  <th>Total</th>
-                  <th aria-label="Actions"></th>
-                </tr>
-              </thead>
-              <tbody id="itemsBody">
-                <tr class="empty-row">
-                  <td colspan="5">No items added yet.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Item</th>
+                      <th>Qty</th>
+                      <th>Rate</th>
+                      <th>Total</th>
+                      <th aria-label="Actions"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="itemsBody"></tbody>
+                </table>
+              </div>
 
-          <div class="bill-controls">
-            <div class="field">
-              <label for="taxRate">Tax / GST %</label>
-              <input id="taxRate" type="number" min="0" step="0.01" value="18">
-            </div>
-            <div class="field">
-              <label for="discount">Discount</label>
-              <input id="discount" type="number" min="0" step="0.01" value="0">
-            </div>
-            <div class="field">
-              <label for="paymentStatus">Payment Status</label>
-              <select id="paymentStatus">
-                <option value="Pending" selected>Pending</option>
-                <option value="Paid">Paid</option>
-                <option value="Partially Paid">Partially Paid</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="customerName">Customer Name</label>
-              <input id="customerName" type="text" placeholder="Walk-in customer">
-            </div>
-            <div class="field">
-              <label for="customerPhone">Customer Phone</label>
-              <input id="customerPhone" type="tel" placeholder="Optional">
-            </div>
-            <div class="field">
-              <label for="cashierName">Cashier</label>
-              <input id="cashierName" type="text" value="Counter 1">
-            </div>
+              <div class="bill-controls">
+                <div class="field">
+                  <label for="taxRate">GST / Tax %</label>
+                  <input id="taxRate" type="number" min="0" step="0.01" value="18">
+                </div>
+                <div class="field">
+                  <label for="discount">Discount</label>
+                  <input id="discount" type="number" min="0" step="0.01" value="0">
+                </div>
+                <div class="field">
+                  <label for="paymentStatus">Payment</label>
+                  <select id="paymentStatus">
+                    <option value="Pending" selected>Pending</option>
+                    <option value="Paid">Paid</option>
+                    <option value="Partially Paid">Partially Paid</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="customerName">Customer</label>
+                  <input id="customerName" type="text" placeholder="Walk-in customer">
+                </div>
+                <div class="field">
+                  <label for="customerPhone">Phone</label>
+                  <input id="customerPhone" type="tel" placeholder="+91...">
+                </div>
+                <div class="field">
+                  <label for="cashierName">Cashier</label>
+                  <input id="cashierName" type="text" value="Counter 1">
+                </div>
+              </div>
+
+              <div class="action-row">
+                <button class="secondary-button" id="useBillTotalBtn" type="button">Generate Payment QR</button>
+                <button class="secondary-button" id="copyBillBtn" type="button">Copy Bill</button>
+                <button class="secondary-button" id="printBillBtn" type="button">Print Receipt</button>
+                <button class="primary-button" id="saveInvoiceBtn" type="button">Save Invoice</button>
+              </div>
+            </section>
           </div>
         </section>
 
-        <section class="panel qr-panel" aria-labelledby="qrTitle">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">Payment QR</p>
-              <h2 id="qrTitle">Generate Amount QR</h2>
-            </div>
-            <button class="secondary-button" id="useBillTotalBtn" type="button">Use Bill Total</button>
-          </div>
-
-          <div class="qr-grid">
-            <div class="manual-qr">
-              <div class="field">
-                <label for="qrAmount">Amount</label>
-                <input id="qrAmount" type="number" min="0" step="0.01" value="0">
+        <section class="view" id="paymentsView" data-title="QR Payments">
+          <div class="payments-layout">
+            <section class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Payment Request</p>
+                  <h2>Send Amount QR</h2>
+                </div>
+                <button class="secondary-button" id="fillFromBillBtn" type="button">Fill From Bill</button>
               </div>
-              <div class="field">
-                <label for="qrNote">Payment Note</label>
-                <input id="qrNote" type="text" value="Bill payment">
+              <div class="payment-form-grid">
+                <div class="field">
+                  <label for="qrAmount">Amount</label>
+                  <input id="qrAmount" type="number" min="0" step="0.01" value="0">
+                </div>
+                <div class="field">
+                  <label for="qrNote">Payment Note</label>
+                  <input id="qrNote" type="text" value="Bill payment">
+                </div>
+                <div class="field">
+                  <label for="recipient">Recipient</label>
+                  <input id="recipient" type="text" placeholder="Customer name or phone">
+                </div>
               </div>
-              <div class="field">
-                <label for="recipient">Send To</label>
-                <input id="recipient" type="text" placeholder="Customer phone/email/name">
-              </div>
-              <div class="button-row">
+              <div class="action-row">
                 <button class="primary-button" id="generateQrBtn" type="button">Generate QR</button>
-                <button class="secondary-button" id="shareQrBtn" type="button">Share Details</button>
+                <button class="secondary-button" id="shareQrBtn" type="button">Copy Share Message</button>
               </div>
-            </div>
+            </section>
 
-            <div class="qr-preview">
+            <section class="panel qr-preview-card">
               <div id="qrcode" aria-label="Generated payment QR"></div>
               <p id="qrStatus">Enter an amount and generate QR.</p>
-              <a id="downloadQrLink" class="download-link" href="#" download="payment-qr.png">Download QR</a>
-            </div>
+              <a id="downloadQrLink" class="download-link" href="#" download="payment-qr.png">Download QR Image</a>
+            </section>
           </div>
         </section>
-      </section>
+
+        <section class="view" id="invoicesView" data-title="Invoices">
+          <section class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Sales Register</p>
+                <h2>Saved Invoices</h2>
+              </div>
+              <button class="secondary-button" type="button" data-jump="pos">Create Invoice</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Invoice</th>
+                    <th>Customer</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Total</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="invoiceBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="view" id="settingsView" data-title="Settings">
+          <section class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Merchant Setup</p>
+                <h2>Business Details</h2>
+              </div>
+              <span class="pill">Auto saved</span>
+            </div>
+            <div class="settings-grid">
+              <div class="field">
+                <label for="businessName">Business Name</label>
+                <input id="businessName" type="text" value="Shree Digital Store" autocomplete="organization">
+              </div>
+              <div class="field">
+                <label for="upiId">UPI ID</label>
+                <input id="upiId" type="text" value="merchant@upi" autocomplete="off">
+              </div>
+              <div class="field">
+                <label for="payeeName">Payee Name</label>
+                <input id="payeeName" type="text" value="Shree Digital Store" autocomplete="name">
+              </div>
+              <div class="field">
+                <label for="currency">Currency</label>
+                <select id="currency">
+                  <option value="INR" selected>INR</option>
+                  <option value="USD">USD</option>
+                  <option value="AED">AED</option>
+                  <option value="EUR">EUR</option>
+                </select>
+              </div>
+              <div class="field wide">
+                <label for="businessAddress">Address</label>
+                <input id="businessAddress" type="text" value="Main Market Road, New Delhi" autocomplete="street-address">
+              </div>
+              <div class="field">
+                <label for="businessPhone">Phone</label>
+                <input id="businessPhone" type="tel" value="+91 98765 43210" autocomplete="tel">
+              </div>
+              <div class="field">
+                <label for="invoicePrefix">Invoice Prefix</label>
+                <input id="invoicePrefix" type="text" value="INV" maxlength="8">
+              </div>
+            </div>
+          </section>
+        </section>
+      </main>
 
       <aside class="receipt-panel" aria-labelledby="receiptTitle">
-        <div class="receipt-actions">
-          <button class="secondary-button" id="copyBillBtn" type="button">Copy Bill</button>
-          <button class="secondary-button danger-soft" id="clearItemsBtn" type="button">Clear Items</button>
+        <div class="receipt-toolbar">
+          <strong>Receipt Preview</strong>
+          <span id="receiptPreviewTotal">₹0.00</span>
         </div>
         <div class="receipt" id="receipt">
           <div class="receipt-head">
@@ -232,12 +327,10 @@
             </div>
           </div>
           <div class="receipt-customer" id="receiptCustomer"></div>
-          <div class="receipt-items" id="receiptItems">
-            <p class="empty-receipt">Items will appear here.</p>
-          </div>
+          <div class="receipt-items" id="receiptItems"></div>
           <div class="receipt-totals">
             <div><span>Subtotal</span><strong id="subtotalText">₹0.00</strong></div>
-            <div><span>Tax / GST</span><strong id="taxText">₹0.00</strong></div>
+            <div><span>GST / Tax</span><strong id="taxText">₹0.00</strong></div>
             <div><span>Discount</span><strong id="discountText">₹0.00</strong></div>
             <div class="grand-total"><span>Total</span><strong id="totalText">₹0.00</strong></div>
           </div>
@@ -252,6 +345,6 @@
           <p class="thanks">Thank you for your purchase.</p>
         </div>
       </aside>
-    </main>
+    </div>
   </body>
 </html>
