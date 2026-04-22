@@ -58,7 +58,7 @@ const state = {
   items: savedState.items || [],
   invoices: savedState.invoices || [],
   billNumber: Number(storage.getItem(BILL_KEY) || savedState.billNumber || "1001"),
-  activeView: savedState.activeView || "dashboard",
+  activeView: getInitialView(),
 };
 
 const els = {
@@ -188,6 +188,15 @@ function createStorage() {
       },
     };
   }
+}
+
+function getInitialView() {
+  const allowedViews = new Set(["dashboard", "pos", "payments", "invoices", "settings"]);
+  const hashView = window.location.hash.replace("#", "");
+  if (allowedViews.has(hashView)) {
+    return hashView;
+  }
+  return savedState.activeView || "dashboard";
 }
 
 function hydrate() {
@@ -702,13 +711,15 @@ function newBill() {
   renderAll();
 }
 
-function fillPaymentFromBill() {
+function fillPaymentFromBill(navigate = true) {
   const total = getTotals().total;
   els.qrAmount.value = total.toFixed(2);
   els.qrNote.value = `${invoiceNumber()} payment`;
   els.recipient.value = els.customerPhone.value.trim() || els.customerName.value.trim();
   generateQr(total);
-  setView("payments");
+  if (navigate) {
+    setView("payments");
+  }
 }
 
 function loadDemoData() {
@@ -733,7 +744,8 @@ function loadDemoData() {
   els.discount.value = "50";
   els.paymentStatus.value = "Pending";
   els.qrNote.value = "Bill payment";
-  fillPaymentFromBill();
+  renderAll();
+  fillPaymentFromBill(false);
   flashSaveState("Sample loaded");
 }
 
@@ -790,4 +802,7 @@ function attachEvents() {
 hydrate();
 attachEvents();
 renderAll();
+if (new URLSearchParams(window.location.search).get("sample") === "1") {
+  loadDemoData();
+}
 setView(state.activeView);
