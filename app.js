@@ -1,13 +1,21 @@
+const STORAGE_KEY = "qr-pos-demo-state";
+const BILL_KEY = "qr-pos-next-bill";
+
+const savedState = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+
 const state = {
-  items: [],
-  billNumber: Number(localStorage.getItem("billNumber") || "1001"),
+  items: savedState.items || [],
+  billNumber: Number(localStorage.getItem(BILL_KEY) || savedState.billNumber || "1001"),
 };
 
 const els = {
   businessName: document.querySelector("#businessName"),
+  businessAddress: document.querySelector("#businessAddress"),
+  businessPhone: document.querySelector("#businessPhone"),
   upiId: document.querySelector("#upiId"),
   payeeName: document.querySelector("#payeeName"),
   currency: document.querySelector("#currency"),
+  invoicePrefix: document.querySelector("#invoicePrefix"),
   billNumber: document.querySelector("#billNumber"),
   billDate: document.querySelector("#billDate"),
   itemForm: document.querySelector("#itemForm"),
@@ -17,7 +25,10 @@ const els = {
   itemsBody: document.querySelector("#itemsBody"),
   taxRate: document.querySelector("#taxRate"),
   discount: document.querySelector("#discount"),
+  paymentStatus: document.querySelector("#paymentStatus"),
   customerName: document.querySelector("#customerName"),
+  customerPhone: document.querySelector("#customerPhone"),
+  cashierName: document.querySelector("#cashierName"),
   qrAmount: document.querySelector("#qrAmount"),
   qrNote: document.querySelector("#qrNote"),
   recipient: document.querySelector("#recipient"),
@@ -26,6 +37,8 @@ const els = {
   qrStatus: document.querySelector("#qrStatus"),
   downloadQrLink: document.querySelector("#downloadQrLink"),
   receiptTitle: document.querySelector("#receiptTitle"),
+  receiptAddress: document.querySelector("#receiptAddress"),
+  receiptPhone: document.querySelector("#receiptPhone"),
   receiptBillNo: document.querySelector("#receiptBillNo"),
   receiptDate: document.querySelector("#receiptDate"),
   receiptCustomer: document.querySelector("#receiptCustomer"),
@@ -34,12 +47,41 @@ const els = {
   taxText: document.querySelector("#taxText"),
   discountText: document.querySelector("#discountText"),
   totalText: document.querySelector("#totalText"),
+  receiptPaymentStatus: document.querySelector("#receiptPaymentStatus"),
+  receiptUpi: document.querySelector("#receiptUpi"),
+  metricTotal: document.querySelector("#metricTotal"),
+  metricItems: document.querySelector("#metricItems"),
+  metricBill: document.querySelector("#metricBill"),
+  metricPayment: document.querySelector("#metricPayment"),
+  saveState: document.querySelector("#saveState"),
   useBillTotalBtn: document.querySelector("#useBillTotalBtn"),
   generateQrBtn: document.querySelector("#generateQrBtn"),
   shareQrBtn: document.querySelector("#shareQrBtn"),
   printBillBtn: document.querySelector("#printBillBtn"),
   newBillBtn: document.querySelector("#newBillBtn"),
+  loadDemoBtn: document.querySelector("#loadDemoBtn"),
+  copyBillBtn: document.querySelector("#copyBillBtn"),
+  clearItemsBtn: document.querySelector("#clearItemsBtn"),
 };
+
+const persistedFields = [
+  "businessName",
+  "businessAddress",
+  "businessPhone",
+  "upiId",
+  "payeeName",
+  "currency",
+  "invoicePrefix",
+  "taxRate",
+  "discount",
+  "paymentStatus",
+  "customerName",
+  "customerPhone",
+  "cashierName",
+  "qrAmount",
+  "qrNote",
+  "recipient",
+];
 
 const currencySymbols = {
   INR: "₹",
@@ -47,6 +89,19 @@ const currencySymbols = {
   AED: "د.إ ",
   EUR: "€",
 };
+
+function hydrate() {
+  persistedFields.forEach((key) => {
+    if (savedState[key] !== undefined && els[key]) {
+      els[key].value = savedState[key];
+    }
+  });
+}
+
+function invoiceNumber() {
+  const prefix = (els.invoicePrefix.value.trim() || "INV").toUpperCase();
+  return `${prefix}-${state.billNumber}`;
+}
 
 function money(value) {
   const symbol = currencySymbols[els.currency.value] || `${els.currency.value} `;
@@ -65,13 +120,14 @@ function getTotals() {
   const tax = subtotal * (Number(els.taxRate.value || 0) / 100);
   const discount = Math.min(Number(els.discount.value || 0), subtotal + tax);
   const total = Math.max(subtotal + tax - discount, 0);
-  return { subtotal, tax, discount, total };
+  const itemCount = state.items.reduce((sum, item) => sum + item.qty, 0);
+  return { subtotal, tax, discount, total, itemCount };
 }
 
 function createPaymentPayload(amount) {
   const upiId = els.upiId.value.trim();
   const payeeName = els.payeeName.value.trim() || els.businessName.value.trim();
-  const note = els.qrNote.value.trim() || `Bill ${state.billNumber}`;
+  const note = els.qrNote.value.trim() || `Bill ${invoiceNumber()}`;
   const currency = els.currency.value;
 
   if (currency === "INR" && upiId) {
@@ -85,7 +141,7 @@ function createPaymentPayload(amount) {
     return `upi://pay?${params.toString()}`;
   }
 
-  return `PAYMENT|PAYEE:${payeeName}|AMOUNT:${Number(amount).toFixed(2)}|CURRENCY:${currency}|NOTE:${note}|BILL:${state.billNumber}`;
+  return `PAYMENT|PAYEE:${payeeName}|AMOUNT:${Number(amount).toFixed(2)}|CURRENCY:${currency}|NOTE:${note}|BILL:${invoiceNumber()}`;
 }
 
 function clearQr(node) {
@@ -95,7 +151,7 @@ function clearQr(node) {
 function renderQr(node, payload, size) {
   clearQr(node);
   if (!window.QRCode) {
-    node.textContent = "QR library is loading. Try again in a moment.";
+    node.textContent = "QR engine is loading. Try again in a moment.";
     return false;
   }
 
@@ -134,9 +190,11 @@ function generateQr(amountSource = Number(els.qrAmount.value || 0)) {
   const payload = createPaymentPayload(amount);
   const rendered = renderQr(els.qrcode, payload, 190);
   if (rendered) {
-    els.qrStatus.textContent = `${money(amount)} QR ready${els.recipient.value ? ` for ${els.recipient.value}` : ""}.`;
+    const recipient = els.recipient.value.trim();
+    els.qrStatus.textContent = `${money(amount)} QR ready${recipient ? ` for ${recipient}` : ""}.`;
     setTimeout(updateQrDownload, 50);
   }
+  persist();
 }
 
 function renderReceiptQr(amount) {
@@ -173,15 +231,20 @@ function renderItemsTable() {
 function renderReceipt() {
   const dateText = todayText();
   const totals = getTotals();
+  const customerParts = [
+    els.customerName.value.trim() && `Customer: ${els.customerName.value.trim()}`,
+    els.customerPhone.value.trim() && `Phone: ${els.customerPhone.value.trim()}`,
+    els.cashierName.value.trim() && `Cashier: ${els.cashierName.value.trim()}`,
+  ].filter(Boolean);
 
-  els.billNumber.textContent = `Bill #${state.billNumber}`;
+  els.billNumber.textContent = invoiceNumber();
   els.billDate.textContent = dateText;
   els.receiptTitle.textContent = els.businessName.value.trim() || "Your Store";
-  els.receiptBillNo.textContent = `Bill #${state.billNumber}`;
+  els.receiptAddress.textContent = els.businessAddress.value.trim();
+  els.receiptPhone.textContent = els.businessPhone.value.trim();
+  els.receiptBillNo.textContent = invoiceNumber();
   els.receiptDate.textContent = dateText;
-  els.receiptCustomer.textContent = els.customerName.value.trim()
-    ? `Customer: ${els.customerName.value.trim()}`
-    : "";
+  els.receiptCustomer.textContent = customerParts.join(" | ");
 
   if (!state.items.length) {
     els.receiptItems.innerHTML = '<p class="empty-receipt">Items will appear here.</p>';
@@ -205,12 +268,40 @@ function renderReceipt() {
   els.taxText.textContent = money(totals.tax);
   els.discountText.textContent = money(totals.discount);
   els.totalText.textContent = money(totals.total);
+  els.receiptPaymentStatus.textContent = els.paymentStatus.value;
+  els.receiptPaymentStatus.classList.toggle("paid", els.paymentStatus.value === "Paid");
+  els.receiptUpi.textContent = els.upiId.value.trim() || "Payment QR";
   renderReceiptQr(totals.total);
+}
+
+function renderMetrics() {
+  const totals = getTotals();
+  els.metricTotal.textContent = money(totals.total);
+  els.metricItems.textContent = String(totals.itemCount);
+  els.metricBill.textContent = invoiceNumber();
+  els.metricPayment.textContent = els.currency.value === "INR" && els.upiId.value.trim() ? "UPI QR" : "QR Text";
 }
 
 function renderAll() {
   renderItemsTable();
   renderReceipt();
+  renderMetrics();
+  persist();
+}
+
+function persist() {
+  const nextState = {
+    items: state.items,
+    billNumber: state.billNumber,
+  };
+  persistedFields.forEach((key) => {
+    if (els[key]) {
+      nextState[key] = els[key].value;
+    }
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
+  localStorage.setItem(BILL_KEY, String(state.billNumber));
+  els.saveState.textContent = "Saved locally";
 }
 
 function escapeHtml(value) {
@@ -239,6 +330,19 @@ function addItem(event) {
   renderAll();
 }
 
+function quickAdd(event) {
+  const button = event.target.closest("button[data-name]");
+  if (!button) {
+    return;
+  }
+  state.items.push({
+    name: button.dataset.name,
+    qty: 1,
+    price: Number(button.dataset.price),
+  });
+  renderAll();
+}
+
 function removeItem(event) {
   const button = event.target.closest(".row-delete");
   if (!button) {
@@ -255,7 +359,7 @@ async function shareQr() {
     return;
   }
 
-  const text = `${els.businessName.value || "Payment"}: pay ${money(amount)} for Bill #${state.billNumber}.`;
+  const text = `${els.businessName.value || "Payment"}: pay ${money(amount)} for ${invoiceNumber()}.`;
   const payload = createPaymentPayload(amount);
   const shareText = `${text}\n${payload}`;
   if (navigator.share) {
@@ -268,6 +372,33 @@ async function shareQr() {
 
   await copyToClipboard(shareText);
   els.qrStatus.textContent = "Payment details copied. You can paste and send them.";
+}
+
+async function copyBill() {
+  const totals = getTotals();
+  const lines = [
+    els.businessName.value.trim(),
+    els.businessAddress.value.trim(),
+    els.businessPhone.value.trim(),
+    "",
+    `${invoiceNumber()} | ${todayText()}`,
+    els.customerName.value.trim() ? `Customer: ${els.customerName.value.trim()}` : "",
+    "",
+    ...state.items.map((item) => `${item.name} - ${item.qty} x ${money(item.price)} = ${money(item.qty * item.price)}`),
+    "",
+    `Subtotal: ${money(totals.subtotal)}`,
+    `Tax / GST: ${money(totals.tax)}`,
+    `Discount: ${money(totals.discount)}`,
+    `Total: ${money(totals.total)}`,
+    `Payment: ${els.paymentStatus.value}`,
+    els.upiId.value.trim() ? `UPI: ${els.upiId.value.trim()}` : "",
+  ].filter((line) => line !== "");
+
+  await copyToClipboard(lines.join("\n"));
+  els.saveState.textContent = "Bill copied";
+  setTimeout(() => {
+    els.saveState.textContent = "Saved locally";
+  }, 1400);
 }
 
 async function copyToClipboard(text) {
@@ -290,10 +421,11 @@ async function copyToClipboard(text) {
 function newBill() {
   state.items = [];
   state.billNumber += 1;
-  localStorage.setItem("billNumber", String(state.billNumber));
+  localStorage.setItem(BILL_KEY, String(state.billNumber));
   els.customerName.value = "";
+  els.customerPhone.value = "";
   els.discount.value = "0";
-  els.taxRate.value = "0";
+  els.paymentStatus.value = "Pending";
   els.qrAmount.value = "0";
   clearQr(els.qrcode);
   clearQr(els.receiptQr);
@@ -301,6 +433,27 @@ function newBill() {
   renderAll();
 }
 
+function clearItems() {
+  state.items = [];
+  renderAll();
+}
+
+function loadDemoData() {
+  state.items = [
+    { name: "USB Cable", qty: 2, price: 199 },
+    { name: "Mobile Cover", qty: 1, price: 299 },
+    { name: "Charger", qty: 1, price: 799 },
+  ];
+  els.customerName.value = "Rahul Sharma";
+  els.customerPhone.value = "+91 90000 11111";
+  els.taxRate.value = "18";
+  els.discount.value = "50";
+  els.paymentStatus.value = "Pending";
+  renderAll();
+  generateQr(getTotals().total);
+}
+
+document.querySelector(".quick-items").addEventListener("click", quickAdd);
 els.itemForm.addEventListener("submit", addItem);
 els.itemsBody.addEventListener("click", removeItem);
 els.useBillTotalBtn.addEventListener("click", () => generateQr(getTotals().total));
@@ -310,18 +463,22 @@ els.shareQrBtn.addEventListener("click", () => {
     els.qrStatus.textContent = "Sharing was cancelled or unavailable.";
   });
 });
+els.copyBillBtn.addEventListener("click", () => {
+  copyBill().catch(() => {
+    els.saveState.textContent = "Copy unavailable";
+  });
+});
 els.printBillBtn.addEventListener("click", () => window.print());
 els.newBillBtn.addEventListener("click", newBill);
+els.loadDemoBtn.addEventListener("click", loadDemoData);
+els.clearItemsBtn.addEventListener("click", clearItems);
 
-[
-  els.businessName,
-  els.payeeName,
-  els.upiId,
-  els.currency,
-  els.taxRate,
-  els.discount,
-  els.customerName,
-  els.qrNote,
-].forEach((input) => input.addEventListener("input", renderAll));
+persistedFields.forEach((key) => {
+  if (els[key]) {
+    els[key].addEventListener("input", renderAll);
+    els[key].addEventListener("change", renderAll);
+  }
+});
 
+hydrate();
 renderAll();

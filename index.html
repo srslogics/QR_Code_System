@@ -4,18 +4,21 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>QR POS Billing</title>
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <link rel="stylesheet" href="styles.css">
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script defer src="vendor/qrcode.min.js"></script>
     <script defer src="app.js"></script>
   </head>
   <body>
     <header class="app-header">
-      <div>
-        <p class="eyebrow">QR Payment + POS</p>
-        <h1>QR POS Billing</h1>
+      <div class="brand-lockup">
+        <div class="brand-mark">QP</div>
+        <div>
+          <p class="eyebrow">QR Payment + POS</p>
+          <h1>QR POS Billing</h1>
+        </div>
       </div>
       <div class="header-actions">
+        <button class="ghost-button" id="loadDemoBtn" type="button">Demo Data</button>
         <button class="icon-button" id="printBillBtn" type="button" title="Print bill" aria-label="Print bill">
           <span aria-hidden="true">⎙</span>
         </button>
@@ -25,29 +28,69 @@
 
     <main class="app-shell">
       <section class="workspace">
-        <div class="panel toolbar-panel">
-          <div class="field compact">
-            <label for="businessName">Business</label>
-            <input id="businessName" type="text" value="Your Store" autocomplete="organization">
+        <section class="metrics-bar" aria-label="Bill summary">
+          <div>
+            <span>Total</span>
+            <strong id="metricTotal">₹0.00</strong>
           </div>
-          <div class="field compact">
-            <label for="upiId">UPI ID</label>
-            <input id="upiId" type="text" value="merchant@upi" autocomplete="off">
+          <div>
+            <span>Items</span>
+            <strong id="metricItems">0</strong>
           </div>
-          <div class="field compact">
-            <label for="payeeName">Payee Name</label>
-            <input id="payeeName" type="text" value="Your Store" autocomplete="name">
+          <div>
+            <span>Bill</span>
+            <strong id="metricBill">INV-1001</strong>
           </div>
-          <div class="field compact">
-            <label for="currency">Currency</label>
-            <select id="currency">
-              <option value="INR" selected>INR</option>
-              <option value="USD">USD</option>
-              <option value="AED">AED</option>
-              <option value="EUR">EUR</option>
-            </select>
+          <div>
+            <span>Payment</span>
+            <strong id="metricPayment">UPI QR</strong>
           </div>
-        </div>
+        </section>
+
+        <section class="panel settings-panel" aria-labelledby="settingsTitle">
+          <div class="panel-heading compact-heading">
+            <div>
+              <p class="eyebrow">Merchant Setup</p>
+              <h2 id="settingsTitle">Business Details</h2>
+            </div>
+            <span class="save-state" id="saveState">Saved locally</span>
+          </div>
+          <div class="settings-grid">
+            <div class="field">
+              <label for="businessName">Business Name</label>
+              <input id="businessName" type="text" value="Shree Digital Store" autocomplete="organization">
+            </div>
+            <div class="field">
+              <label for="upiId">UPI ID</label>
+              <input id="upiId" type="text" value="merchant@upi" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="payeeName">Payee Name</label>
+              <input id="payeeName" type="text" value="Shree Digital Store" autocomplete="name">
+            </div>
+            <div class="field">
+              <label for="currency">Currency</label>
+              <select id="currency">
+                <option value="INR" selected>INR</option>
+                <option value="USD">USD</option>
+                <option value="AED">AED</option>
+                <option value="EUR">EUR</option>
+              </select>
+            </div>
+            <div class="field wide">
+              <label for="businessAddress">Address</label>
+              <input id="businessAddress" type="text" value="Main Market Road, New Delhi" autocomplete="street-address">
+            </div>
+            <div class="field">
+              <label for="businessPhone">Phone</label>
+              <input id="businessPhone" type="tel" value="+91 98765 43210" autocomplete="tel">
+            </div>
+            <div class="field">
+              <label for="invoicePrefix">Invoice Prefix</label>
+              <input id="invoicePrefix" type="text" value="INV" maxlength="8">
+            </div>
+          </div>
+        </section>
 
         <section class="panel pos-panel" aria-labelledby="posTitle">
           <div class="panel-heading">
@@ -56,7 +99,7 @@
               <h2 id="posTitle">Create Bill</h2>
             </div>
             <div class="bill-meta">
-              <span id="billNumber">Bill #1001</span>
+              <span id="billNumber">INV-1001</span>
               <time id="billDate"></time>
             </div>
           </div>
@@ -74,8 +117,15 @@
               <label for="itemPrice">Price</label>
               <input id="itemPrice" type="number" min="0" step="0.01" placeholder="0.00" required>
             </div>
-            <button class="primary-button add-button" type="submit">Add</button>
+            <button class="primary-button add-button" type="submit">Add Item</button>
           </form>
+
+          <div class="quick-items" aria-label="Quick add products">
+            <button type="button" data-name="USB Cable" data-price="199">USB Cable</button>
+            <button type="button" data-name="Mobile Cover" data-price="299">Mobile Cover</button>
+            <button type="button" data-name="Charger" data-price="799">Charger</button>
+            <button type="button" data-name="Screen Guard" data-price="149">Screen Guard</button>
+          </div>
 
           <div class="table-wrap">
             <table>
@@ -83,7 +133,7 @@
                 <tr>
                   <th>Item</th>
                   <th>Qty</th>
-                  <th>Price</th>
+                  <th>Rate</th>
                   <th>Total</th>
                   <th aria-label="Actions"></th>
                 </tr>
@@ -98,16 +148,32 @@
 
           <div class="bill-controls">
             <div class="field">
-              <label for="taxRate">Tax %</label>
-              <input id="taxRate" type="number" min="0" step="0.01" value="0">
+              <label for="taxRate">Tax / GST %</label>
+              <input id="taxRate" type="number" min="0" step="0.01" value="18">
             </div>
             <div class="field">
               <label for="discount">Discount</label>
               <input id="discount" type="number" min="0" step="0.01" value="0">
             </div>
             <div class="field">
-              <label for="customerName">Customer</label>
-              <input id="customerName" type="text" placeholder="Optional">
+              <label for="paymentStatus">Payment Status</label>
+              <select id="paymentStatus">
+                <option value="Pending" selected>Pending</option>
+                <option value="Paid">Paid</option>
+                <option value="Partially Paid">Partially Paid</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="customerName">Customer Name</label>
+              <input id="customerName" type="text" placeholder="Walk-in customer">
+            </div>
+            <div class="field">
+              <label for="customerPhone">Customer Phone</label>
+              <input id="customerPhone" type="tel" placeholder="Optional">
+            </div>
+            <div class="field">
+              <label for="cashierName">Cashier</label>
+              <input id="cashierName" type="text" value="Counter 1">
             </div>
           </div>
         </section>
@@ -137,7 +203,7 @@
               </div>
               <div class="button-row">
                 <button class="primary-button" id="generateQrBtn" type="button">Generate QR</button>
-                <button class="secondary-button" id="shareQrBtn" type="button">Share</button>
+                <button class="secondary-button" id="shareQrBtn" type="button">Share Details</button>
               </div>
             </div>
 
@@ -151,11 +217,19 @@
       </section>
 
       <aside class="receipt-panel" aria-labelledby="receiptTitle">
+        <div class="receipt-actions">
+          <button class="secondary-button" id="copyBillBtn" type="button">Copy Bill</button>
+          <button class="secondary-button danger-soft" id="clearItemsBtn" type="button">Clear Items</button>
+        </div>
         <div class="receipt" id="receipt">
           <div class="receipt-head">
-            <h2 id="receiptTitle">Your Store</h2>
-            <p id="receiptBillNo">Bill #1001</p>
-            <p id="receiptDate"></p>
+            <h2 id="receiptTitle">Shree Digital Store</h2>
+            <p id="receiptAddress">Main Market Road, New Delhi</p>
+            <p id="receiptPhone">+91 98765 43210</p>
+            <div class="receipt-meta">
+              <span id="receiptBillNo">INV-1001</span>
+              <span id="receiptDate"></span>
+            </div>
           </div>
           <div class="receipt-customer" id="receiptCustomer"></div>
           <div class="receipt-items" id="receiptItems">
@@ -163,9 +237,13 @@
           </div>
           <div class="receipt-totals">
             <div><span>Subtotal</span><strong id="subtotalText">₹0.00</strong></div>
-            <div><span>Tax</span><strong id="taxText">₹0.00</strong></div>
+            <div><span>Tax / GST</span><strong id="taxText">₹0.00</strong></div>
             <div><span>Discount</span><strong id="discountText">₹0.00</strong></div>
             <div class="grand-total"><span>Total</span><strong id="totalText">₹0.00</strong></div>
+          </div>
+          <div class="receipt-payment">
+            <span id="receiptPaymentStatus">Pending</span>
+            <strong id="receiptUpi">merchant@upi</strong>
           </div>
           <div class="receipt-qr">
             <div id="receiptQr"></div>
